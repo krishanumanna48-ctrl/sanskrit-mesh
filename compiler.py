@@ -508,3 +508,5 @@ if __name__ == "__main__":
     print(f"Compressed             : {prompt_report['compressed_chars']} chars")
     print(f"Savings                : {prompt_report['compression_pct']}%")
     print(f"Compressed: {compressed_prompt}")
+ 
+ 
