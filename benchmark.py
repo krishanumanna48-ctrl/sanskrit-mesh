@@ -23,33 +23,53 @@ compiler = SanskritMeshCompiler()
 GREEN  = "\033[92m"
 YELLOW = "\033[93m"
 CYAN   = "\033[96m"
+BLUE   = "\033[94m"
 RED    = "\033[91m"
 BOLD   = "\033[1m"
+DIM    = "\033[2m"
 RESET  = "\033[0m"
+
+W = 64  # total width
+
+
+def bar(pct: float, width: int = 30) -> str:
+    """Render a colored ASCII progress bar for compression %."""
+    filled = round((pct / 100) * width)
+    empty  = width - filled
+    if pct >= 60:
+        color = GREEN
+    elif pct >= 35:
+        color = YELLOW
+    else:
+        color = RED
+    return f"{color}{'█' * filled}{DIM}{'░' * empty}{RESET}"
 
 
 def print_report(label: str, original, compressed):
     report = compiler.get_savings_report(original, compressed)
-    pct = report["compression_pct"]
-    color = GREEN if pct >= 50 else (YELLOW if pct >= 25 else RED)
+    pct    = report["compression_pct"]
+    color  = GREEN if pct >= 60 else (YELLOW if pct >= 30 else RED)
 
-    print(f"\n{BOLD}{'─' * 60}{RESET}")
-    print(f"{BOLD}{label}{RESET}")
-    print(f"{'─' * 60}")
-    print(f"  Original chars  : {report['original_chars']:>8}")
-    print(f"  Compressed chars: {report['compressed_chars']:>8}")
-    print(f"  Chars saved     : {report['chars_saved']:>8}")
-    print(f"  {BOLD}Compression     : {color}{pct:>7}%{RESET}")
-    print(f"  Tokens (est.)   : {report['estimated_tokens_original']:>5} → {report['estimated_tokens_compressed']:>5}  (saved {report['estimated_tokens_saved']})")
-    print(f"  Cost @ GPT-4o   : ${report['estimated_cost_saved_usd_gpt4o']:.6f} saved per call")
-    print(f"  Monthly (1k calls)  : ${report['monthly_savings_1k_calls_usd']:.4f} saved")
-    print(f"  Monthly (100k calls): ${report['monthly_savings_100k_calls_usd']:.2f} saved")
+    print(f"\n  {BOLD}{'─' * (W - 2)}{RESET}")
+    print(f"  {BOLD}{CYAN}{label}{RESET}")
+    print(f"  {'─' * (W - 2)}")
+    print(f"  {DIM}{'chars':>6}  {'tokens':>6}  {'cost saved / call':>20}{RESET}")
+    print(f"  {'before':>6}  {report['original_chars']:>6}  {report['estimated_tokens_original']:>6}  {'':>20}")
+    print(f"  {'after':>6}  {report['compressed_chars']:>6}  {report['estimated_tokens_compressed']:>6}  ${report['estimated_cost_saved_usd_gpt4o']:.6f}")
+    print()
+    print(f"  {bar(pct)}  {color}{BOLD}{pct}%{RESET} compressed")
+    print(f"  {DIM}monthly @ 100k calls → {RESET}{BOLD}${report['monthly_savings_100k_calls_usd']:.2f} saved{RESET}  {DIM}(GPT-4o){RESET}")
 
 
 def run_benchmark_suite():
-    print(f"\n{BOLD}{CYAN}{'═' * 60}{RESET}")
-    print(f"{BOLD}{CYAN}  Sanskrit-Mesh V1 — Full Benchmark Suite{RESET}")
-    print(f"{BOLD}{CYAN}{'═' * 60}{RESET}")
+    # ── Banner ────────────────────────────────────────────────────────────────
+    print()
+    print(f"  {BOLD}{CYAN}+{'=' * (W - 2)}+{RESET}")
+    print(f"  {BOLD}{CYAN}|{'':^{W-2}}|{RESET}")
+    print(f"  {BOLD}{CYAN}|{'   sanskrit-mesh  --  token compression benchmark':^{W-2}}|{RESET}")
+    print(f"  {BOLD}{CYAN}|{'  pip install sanskrit-mesh':^{W-2}}|{RESET}")
+    print(f"  {BOLD}{CYAN}|{'':^{W-2}}|{RESET}")
+    print(f"  {BOLD}{CYAN}+{'=' * (W - 2)}+{RESET}")
 
     results = []
 
@@ -162,23 +182,51 @@ def run_benchmark_suite():
     results.append(compiler.get_savings_report(b6_orig, b6_comp)["compression_pct"])
 
     # ── Summary ───────────────────────────────────────────────────────────────
-    avg = round(sum(results) / len(results), 2)
-    best = max(results)
+    avg   = round(sum(results) / len(results), 2)
+    best  = max(results)
     worst = min(results)
+    agent_results = results[:-1]  # exclude worst-case adversarial test
+    real_avg = round(sum(agent_results) / len(agent_results), 2)
 
-    print(f"\n{BOLD}{CYAN}{'═' * 60}{RESET}")
-    print(f"{BOLD}{CYAN}  BENCHMARK SUMMARY{RESET}")
-    print(f"{BOLD}{CYAN}{'═' * 60}{RESET}")
-    print(f"  Benchmarks run  : {len(results)}")
-    print(f"  Best compression: {GREEN}{BOLD}{best}%{RESET}")
-    print(f"  Avg compression : {YELLOW}{BOLD}{avg}%{RESET}")
-    print(f"  Worst case      : {worst}%  (unmapped content — expected)")
-    print(f"\n  Real-world agent pipelines sit between avg and best.")
-    print(f"  For GPT-4o at scale:\n")
-    avg_token_savings_per_call = round((avg / 100) * 500)  # assume avg 500 tokens/call
-    print(f"    1,000 calls/day  → ~{avg_token_savings_per_call * 1000:,} tokens saved/day")
-    print(f"    100k calls/month → ${round((avg_token_savings_per_call * 100_000) / 1_000_000 * 5, 2):,.2f} saved/month (GPT-4o)")
-    print(f"{BOLD}{CYAN}{'═' * 60}{RESET}\n")
+    avg_token_savings_per_call = round((real_avg / 100) * 500)
+    monthly_100k = round((avg_token_savings_per_call * 100_000) / 1_000_000 * 5, 2)
+
+    print()
+    print(f"  {BOLD}{CYAN}+{'=' * (W - 2)}+{RESET}")
+    print(f"  {BOLD}{CYAN}|{'':^{W-2}}|{RESET}")
+    print(f"  {BOLD}{CYAN}|{'  RESULTS  ':^{W-2}}|{RESET}")
+    print(f"  {BOLD}{CYAN}|{'':^{W-2}}|{RESET}")
+    print(f"  {BOLD}{CYAN}+{'=' * (W - 2)}+{RESET}")
+    print()
+
+    labels = [
+        "Simple agent message",
+        "System prompt",
+        "LangChain memory",
+        "Multi-agent nested",
+        "ReAct scratchpad",
+        "Worst case (no matches)",
+    ]
+    for i, (lbl, pct) in enumerate(zip(labels, results)):
+        filled = round((pct / 100) * 20)
+        empty  = 20 - filled
+        bar_str = "█" * filled + "░" * empty
+        pct_str = f"{pct:>6}%"
+        print(f"  {lbl:<26}  {bar_str}  {pct_str}")
+    print()
+    print(f"  {'─' * (W - 2)}")
+    print(f"  {BOLD}Real-world agent avg   {GREEN}{real_avg}%{RESET}   {DIM}(excl. adversarial test){RESET}")
+    print(f"  {BOLD}Best observed          {GREEN}{best}%{RESET}")
+    print(f"  {DIM}Worst case             {worst}%   (freeform text — expected){RESET}")
+    print()
+    print(f"  {BOLD}At scale on GPT-4o:{RESET}")
+    print(f"  {DIM}1k  calls/day   →{RESET}  ~{avg_token_savings_per_call * 1_000:>10,} tokens saved / day")
+    print(f"  {DIM}100k calls/month →{RESET}  {GREEN}{BOLD}${monthly_100k:>10,.2f} saved / month{RESET}")
+    print()
+    print(f"  {DIM}github.com/krishanumanna48-ctrl/sanskrit-mesh{RESET}")
+    print(f"  {DIM}pip install sanskrit-mesh{RESET}")
+    print(f"  {'─' * (W - 2)}")
+    print()
 
 
 def run_custom_payload(raw: str):
@@ -222,5 +270,5 @@ if __name__ == "__main__":
         run_file_payload(args.file)
     else:
         run_benchmark_suite()
- 
- 
+
+
