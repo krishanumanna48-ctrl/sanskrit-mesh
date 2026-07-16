@@ -351,8 +351,38 @@ response = ollama.chat(model="llama3.2", messages=compressed)
 
 The dictionary grows with the community. Adding an entry is one line of Python. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Release readiness
+
+V2 is being prepared as a release-ready package with:
+- a documented IR contract and versioning policy
+- validator-based regression coverage
+- linguistic and multilingual compression rules with round-trip tests
+- rollout guidance and privacy safeguards
+
+See [docs/release-checklist.md](docs/release-checklist.md) and [docs/privacy-and-rollout.md](docs/privacy-and-rollout.md) for the rollout plan.
+
 ---
 
 ## License
+
+## Examples
+
+Small integration examples ship in `examples/` to demonstrate the transformer/adapters.
+
+- `examples/langchain_example.py` — LangChain transformer demo (defensive import).
+- `examples/llamaindex_example.py` — LlamaIndex adapter demo (defensive import).
+
+Run them with:
+
+```
+python examples/langchain_example.py
+python examples/llamaindex_example.py
+```
+
+These examples exercise the transform/compile path and should work in
+environments without the external libraries because integrations use
+defensive imports.
+
+---
 
 MIT — free forever. Stop paying OpenAI to read your agents' polite greetings.

@@ -15,8 +15,29 @@ import sys
 import argparse
 import time
 from compiler import SanskritMeshCompiler
+from sanskrit_mesh.core import tables
+from sanskrit_mesh.core.compiler import HyperCompiler
 
 compiler = SanskritMeshCompiler()
+
+# Helper: run benchmark for a specific level (and optional huffman mode)
+def run_bench_for_level(level, huffman=None):
+    results = []
+    if level == tables.LEVEL_V1:
+        comp = compiler
+    elif level == tables.LEVEL_PANINIAN:
+        comp = HyperCompiler(level=level, huffman=huffman or "fixed")
+    else:
+        comp = HyperCompiler(level=level, huffman=huffman or "fixed")
+
+    def _compile(o):
+        if isinstance(o, str):
+            return comp.compile_text(o)
+        return comp.compile_payload(o)
+
+    samples = []
+    # reuse existing benchmark samples (defined below); we'll fill them later
+    return None
 
 
 # ── ANSI Colors ───────────────────────────────────────────────────────────────
@@ -57,6 +78,9 @@ def print_report(label: str, original, compressed):
     print(f"  {'before':>6}  {report['original_chars']:>6}  {report['estimated_tokens_original']:>6}  {'':>20}")
     print(f"  {'after':>6}  {report['compressed_chars']:>6}  {report['estimated_tokens_compressed']:>6}  ${report['estimated_cost_saved_usd_gpt4o']:.6f}")
     print()
+
+    # ── Per-level summary (v1, entropy, structural, paninian, hyper-fixed, hyper-dynamic)
+
     print(f"  {bar(pct)}  {color}{BOLD}{pct}%{RESET} compressed")
     print(f"  {DIM}monthly @ 100k calls → {RESET}{BOLD}${report['monthly_savings_100k_calls_usd']:.2f} saved{RESET}  {DIM}(GPT-4o){RESET}")
 
@@ -227,6 +251,38 @@ def run_benchmark_suite():
     print(f"  {DIM}pip install sanskrit-mesh{RESET}")
     print(f"  {'─' * (W - 2)}")
     print()
+
+    # ── Per-level summary (v1, entropy, structural, paninian, hyper-fixed, hyper-dynamic)
+    samples = [b1_orig, b2_orig, b3_orig, b4_orig, b5_orig, b6_orig]
+    levels = [tables.LEVEL_V1, tables.LEVEL_ENTROPY, tables.LEVEL_STRUCTURAL, tables.LEVEL_PANINIAN]
+    print(f"  {BOLD}Per-level average compression{RESET}")
+    header = f"  {'Level':<12} {'Avg %':>6} {'1k/day tokens saved':>20}"
+    print(header)
+    for lvl in levels:
+        total = 0
+        for s in samples:
+            if lvl == tables.LEVEL_V1:
+                c = SanskritMeshCompiler()
+                comp = c.compile_payload(s) if isinstance(s, dict) else c.compile_text(s)
+            else:
+                hc = HyperCompiler(level=lvl, huffman='fixed')
+                comp = hc.compile_payload(s) if isinstance(s, dict) else hc.compile_text(s)
+            rpt = compiler.get_savings_report(s, comp)
+            total += rpt['compression_pct']
+        avg_pct = round(total / len(samples), 2)
+        est_tokens_saved = round((avg_pct / 100) * 500)
+        print(f"  {lvl:<12} {avg_pct:6}% {est_tokens_saved:20,}")
+
+    # hyper with dynamic
+    total = 0
+    for s in samples:
+        hc = HyperCompiler(level=tables.LEVEL_HYPER, huffman='dynamic')
+        comp = hc.compile_payload(s) if isinstance(s, dict) else hc.compile_text(s)
+        rpt = compiler.get_savings_report(s, comp)
+        total += rpt['compression_pct']
+    avg_pct = round(total / len(samples), 2)
+    est_tokens_saved = round((avg_pct / 100) * 500)
+    print(f"  {'hyper-dyn':<12} {avg_pct:6}% {est_tokens_saved:20,}")
 
 
 def run_custom_payload(raw: str):
