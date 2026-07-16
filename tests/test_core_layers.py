@@ -2,21 +2,21 @@ import json
 import os
 import unittest
 
-from sanskrit_mesh.core.compiler import HyperCompiler
+from sanskrit_mesh import SanskritMeshCompiler
 from sanskrit_mesh.core import tables
 from sanskrit_mesh.core.registry import DynamicRegistry
 
 
 class TestCoreLayers(unittest.TestCase):
     def test_entropy_roundtrip(self):
-        hc = HyperCompiler(level=tables.LEVEL_ENTROPY)
+        hc = SanskritMeshCompiler(level=tables.LEVEL_ENTROPY)
         text = "The agent reported an error: NullPointerException: object reference not set."
         enc = hc.compile_text(text)
         dec = hc.decompile_text(enc)
         self.assertEqual(text, dec)
 
     def test_structural_roundtrip(self):
-        hc = HyperCompiler(level=tables.LEVEL_STRUCTURAL)
+        hc = SanskritMeshCompiler(level=tables.LEVEL_STRUCTURAL)
         payload = {
             "sender": "Agent A",
             "intent": "Formulating Plan",
@@ -31,12 +31,12 @@ class TestCoreLayers(unittest.TestCase):
             "message": "I encountered the following error: TimeoutError: operation timed out. Please advise."
         }
         # fixed
-        hc_fixed = HyperCompiler(level=tables.LEVEL_HYPER, huffman="fixed")
+        hc_fixed = SanskritMeshCompiler(level=tables.LEVEL_HYPER, huffman="fixed")
         enc_fixed = hc_fixed.compile_payload(payload)
         dec_fixed = hc_fixed.decompile_payload(enc_fixed)
         self.assertEqual(payload, dec_fixed)
         # dynamic
-        hc_dyn = HyperCompiler(level=tables.LEVEL_HYPER, huffman="dynamic")
+        hc_dyn = SanskritMeshCompiler(level=tables.LEVEL_HYPER, huffman="dynamic")
         enc_dyn = hc_dyn.compile_payload(payload)
         dec_dyn = hc_dyn.decompile_payload(enc_dyn)
         self.assertEqual(payload, dec_dyn)
@@ -64,8 +64,8 @@ class TestCoreLayers(unittest.TestCase):
 
     def test_paninian_sandhi_roundtrip(self):
         # Use full paninian (not v1-only) to exercise sandhi handling
-        from sanskrit_mesh.core.compiler import HyperCompiler
-        hc = HyperCompiler(level=tables.LEVEL_PANINIAN)
+        from sanskrit_mesh import SanskritMeshCompiler
+        hc = SanskritMeshCompiler(level=tables.LEVEL_PANINIAN)
         text = "I am a agent A"  # 'a agent' creates vowel-vowel boundary (a <space> a)
         enc = hc.compile_text(text)
         dec = hc.decompile_text(enc)

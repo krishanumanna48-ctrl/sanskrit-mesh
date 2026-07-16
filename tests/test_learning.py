@@ -1,75 +1,63 @@
-"""Test the auto-learning engine."""
-import json
-from sanskrit_mesh.learning import AutoDictionary, PhraseLearner
+"""Test auto-learning engine."""
 
-# Test 1: Basic phrase learning
-print("=== Test 1: Phrase Learning ===")
-learner = PhraseLearner(min_frequency=2, min_savings=1)
+from sanskrit_mesh import SanskritMeshCompiler
+from sanskrit_mesh.learning.learner import AutoDictionary
 
-# Simulate repetitive agent traffic
-repeated_phrases = [
-    "I need to call a tool to deploy the application",
-    "I need to call a tool to deploy the application",
-    "I need to call a tool to deploy the application",
-    "The deployment failed due to network error",
-    "The deployment failed due to network error",
-    "The deployment failed due to network error",
-    "Executing plan step number one of five",
-    "Executing plan step number one of five",
-]
 
-for phrase in repeated_phrases:
-    learner.ingest_text(phrase)
+def main():
+    compiler = SanskritMeshCompiler(level="paninian")
+    print("=== Test 1: Phrase Learning ===")
 
-stats = learner.get_stats()
-print(f"Payloads seen: {stats['total_payloads_seen']}")
-print(f"Unique n-grams: {stats['unique_ngrams_tracked']}")
-print(f"Learned entries: {stats['learned_entries']}")
+    sample_texts = [
+        "The deployment failed due to network error",
+        "The deployment failed due to network error",
+        "The deployment failed due to network error",
+        "I need to call a tool to deploy the application",
+        "I need to call a tool to deploy the application",
+        "I need to call a tool to deploy the application",
+    ]
 
-# Score candidates
-candidates = learner.score_candidates(top_n=10)
-print(f"\nTop candidates:")
-for net, per, count, phrase in candidates:
-    print(f"  '{phrase}' ×{count} = {net} net tokens saved")
+    for text in sample_texts:
+        compiler.auto_dict.learner.ingest_text(text)
 
-# Promote
-promoted = learner.promote_candidates(top_n=5)
-print(f"\nPromoted ({len(promoted)}):")
-for phrase, glyph, savings in promoted:
-    print(f"  '{phrase}' → {glyph} (saves {savings} tokens)")
+    stats = compiler.auto_dict.learner.get_stats()
+    print(f"Payloads seen: {stats['total_payloads_seen']}")
+    print(f"Unique n-grams: {stats['unique_ngrams_tracked']}")
+    print(f"Learned entries: {stats['learned_entries']}")
 
-print(f"\nLearned dict: {learner.dictionary}")
+    print("\nTop candidates:")
+    candidates = compiler.auto_dict.learner.score_candidates(top_n=10)
+    for net, per, count, phrase in candidates[:10]:
+        print(f"  '{phrase}' x{count} = {net} net tokens saved")
 
-# Test 2: AutoDictionary integration
-print("\n=== Test 2: AutoDictionary ===")
-auto = AutoDictionary(persist_path="test_learned.json")
-for phrase in repeated_phrases:
-    auto.ingest(phrase)
+    print("\nPromoted (5):")
+    promoted = compiler.auto_dict.learner.promote_candidates(top_n=5)
+    for phrase, glyph, savings in promoted:
+        print(f"  '{phrase}' -> {glyph} (saves {savings} tokens)")
 
-promoted = auto.learn(top_n=5)
-print(f"Auto-learned: {len(promoted)} entries")
-for phrase, glyph, savings in promoted:
-    print(f"  '{phrase}' → {glyph}")
+    learned = compiler.auto_dict.learner.dictionary
+    print(f"\nLearned dict: {learned}")
 
-stats = auto.get_stats()
-print(f"\nStats: {json.dumps(stats, indent=2)}")
+    print("\n=== Test 2: AutoDictionary ===")
+    auto_dict = AutoDictionary()
+    for text in sample_texts:
+        auto_dict.ingest(text)
+    auto_dict.learn(top_n=5)
+    print(f"Auto-learned: {len(auto_dict.learner.dictionary)} entries")
+    for phrase, glyph in auto_dict.learner.dictionary.items():
+        print(f"  '{phrase}' -> {glyph}")
 
-# Test 3: Apply to HyperCompiler
-print("\n=== Test 3: Apply to HyperCompiler ===")
-from sanskrit_mesh.core.compiler import HyperCompiler
+    print(f"\nStats: {auto_dict.get_stats()}")
 
-hc = HyperCompiler(level="hyper")
-auto.apply(hc)
+    print("\n=== Test 3: Apply to Compiler ===")
+    compiler2 = SanskritMeshCompiler(level="hyper")
+    auto_dict.apply(compiler2)
+    for phrase, glyph in auto_dict.learner.dictionary.items():
+        in_dict = phrase in compiler2.dictionary
+        print(f"  '{phrase}' in V1 dict: {in_dict} -> token: {compiler2.dictionary.get(phrase, None)}")
 
-# Check that learned phrases are in the dictionary
-learned = auto.learner.dictionary
-for phrase, glyph in list(learned.items())[:2]:
-    in_dict = phrase in hc._v1_paninian.dictionary
-    print(f"  '{phrase}' in V1 dict: {in_dict} → token: {hc._v1_paninian.dictionary.get(phrase)}")
+    print("\nAll tests passed!")
 
-# Cleanup
-import os
-if os.path.exists("test_learned.json"):
-    os.remove("test_learned.json")
 
-print("\n✅ All tests passed!")
+if __name__ == "__main__":
+    main()

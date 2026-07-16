@@ -16,7 +16,7 @@ import argparse
 import time
 from compiler import SanskritMeshCompiler
 from sanskrit_mesh.core import tables
-from sanskrit_mesh.core.compiler import HyperCompiler
+from sanskrit_mesh import SanskritMeshCompiler ; HyperCompiler = SanskritMeshCompiler
 
 compiler = SanskritMeshCompiler()
 
