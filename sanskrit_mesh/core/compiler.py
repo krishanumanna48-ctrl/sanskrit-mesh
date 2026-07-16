@@ -166,8 +166,7 @@ class SanskritMeshCompiler:
         if active["huffman"]:
             body, envelope = self.huffman.strip_envelope(result)
             result = self.huffman.decode(body, envelope)
-        # Skip entropy decode if text contains paninian tokens (entropy was skipped during encode)
-        if active["entropy"] and '|' not in result:
+        if active["entropy"]:
             result = self.entropy.decode(result)
         if active["structural"]:
             result = self.structural.decode_text_with_enums(result)
